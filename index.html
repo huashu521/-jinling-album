@@ -191,9 +191,12 @@
             backface-visibility: hidden;
         }
 
-        #sequence-image {
+        #sequence-canvas {
             width: 100%;
             height: auto;
+            aspect-ratio: 388 / 588;
+            display: block;
+            will-change: contents;
         }
 
         /* 点击提示 */
@@ -2651,7 +2654,7 @@
         
         <!-- PNG序列容器 -->
         <div id="sequence-container">
-            <img id="sequence-image" src="" alt="翻页序列">
+            <canvas id="sequence-canvas"></canvas>
         </div>
         
         <!-- 点击提示 -->
@@ -4135,6 +4138,9 @@
         // PNG序列配置
         const SEQUENCE_FRAMES = 51;       // 总帧数（frame-_0050_到frame-_0000_共51帧）
         const SEQUENCE_DURATION = 5000;   // 序列播放总时长（毫秒）
+        const FRAME_WIDTH = 388;
+        const FRAME_HEIGHT = 588;
+        const preloadedFrames = new Array(SEQUENCE_FRAMES); // 预解码帧缓存
         // =====================================================
 
         // 微尘粒子系统
@@ -4279,35 +4285,45 @@
             }, 3300);
         }
 
-        // 播放PNG序列
+        // 播放PNG序列（Canvas + rAF，零解码开销，GPU合成）
         function playSequence() {
-            const sequenceImage = document.getElementById('sequence-image');
+            const canvas = document.getElementById('sequence-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = FRAME_WIDTH;
+            canvas.height = FRAME_HEIGHT;
+
             const frameInterval = SEQUENCE_DURATION / SEQUENCE_FRAMES;
-            let currentFrame = 1; // 从1.png开始
-            
-            // 清除可能存在的旧定时器
+            const startTime = performance.now();
+            let lastFrame = -1;
+
             if (sequenceInterval) {
                 clearInterval(sequenceInterval);
                 sequenceInterval = null;
             }
-            
-            sequenceInterval = setInterval(() => {
-                const fileName = `picture/png序列/${currentFrame}.png`;
-                
-                sequenceImage.src = fileName;
-                
-                currentFrame++;
-                
-                // 检查是否播放完毕
-                if (currentFrame > SEQUENCE_FRAMES) {
-                    clearInterval(sequenceInterval);
-                    sequenceInterval = null;
-                    // 序列播放完成，显示书籍页面
-                    setTimeout(() => {
-                        showBook();
-                    }, 500);
+
+            function drawFrame(now) {
+                const elapsed = now - startTime;
+                const frameIndex = Math.min(Math.floor(elapsed / frameInterval), SEQUENCE_FRAMES - 1);
+
+                if (frameIndex !== lastFrame && preloadedFrames[frameIndex]) {
+                    ctx.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                    ctx.drawImage(preloadedFrames[frameIndex], 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                    lastFrame = frameIndex;
                 }
-            }, frameInterval);
+
+                if (elapsed < SEQUENCE_DURATION) {
+                    requestAnimationFrame(drawFrame);
+                } else {
+                    const lastImg = preloadedFrames[SEQUENCE_FRAMES - 1];
+                    if (lastImg) {
+                        ctx.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                        ctx.drawImage(lastImg, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                    }
+                    setTimeout(() => showBook(), 500);
+                }
+            }
+
+            requestAnimationFrame(drawFrame);
         }
 
         // ==================== 书籍页面功能 ====================
@@ -4382,7 +4398,7 @@
             const bookContainer = document.getElementById('book-container');
             const overlay = document.getElementById('overlay');
             const sequenceContainer = document.getElementById('sequence-container');
-            const sequenceImage = document.getElementById('sequence-image');
+            const sequenceImage = document.getElementById('sequence-canvas');
             
             // 隐藏书页
             bookContainer.style.display = 'none';
@@ -4396,44 +4412,62 @@
             playClosingSequence();
         }
 
-        // 播放合书序列（反向播放）
+        // 播放合书序列（反向播放，Canvas + rAF）
         function playClosingSequence() {
-            const sequenceImage = document.getElementById('sequence-image');
+            const canvas = document.getElementById('sequence-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = FRAME_WIDTH;
+            canvas.height = FRAME_HEIGHT;
+
             const sequenceContainer = document.getElementById('sequence-container');
             const homeContainer = document.getElementById('home-container');
             const overlay = document.getElementById('overlay');
-            
-            // 清除可能存在的旧定时器
+
+            // 清除旧定时器
             if (sequenceInterval) {
                 clearInterval(sequenceInterval);
                 sequenceInterval = null;
             }
-            
-            // 设置序列容器宽度为60vw（开书结束时的大小），然后播放缩小动画
-            sequenceContainer.style.width = '60vw';
+
             sequenceContainer.style.animation = 'sequenceShrink 5s ease-out forwards';
-            
-            // 从51.png开始反向播放到1.png
-            let currentFrame = SEQUENCE_FRAMES; // 从51开始
+
             const frameInterval = SEQUENCE_DURATION / SEQUENCE_FRAMES;
-            
-            // 设置首帧为51.png
-            sequenceImage.src = `picture/png序列/${currentFrame}.png`;
-            
-            sequenceInterval = setInterval(() => {
-                currentFrame--;
-                sequenceImage.src = `picture/png序列/${currentFrame}.png`;
-                
-                if (currentFrame <= 1) {
-                    clearInterval(sequenceInterval);
-                    sequenceInterval = null;
-                    
-                    // 动画完成，返回首页
-                    setTimeout(() => {
-                        finishClosing();
-                    }, 300);
+            const startTime = performance.now();
+            let lastFrame = -1;
+
+            function drawFrame(now) {
+                const elapsed = now - startTime;
+                // 反向：从最后一帧到第一帧
+                const frameIndex = Math.max(SEQUENCE_FRAMES - 1 - Math.floor(elapsed / frameInterval), 0);
+
+                if (frameIndex !== lastFrame && preloadedFrames[frameIndex]) {
+                    ctx.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                    ctx.drawImage(preloadedFrames[frameIndex], 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                    lastFrame = frameIndex;
                 }
-            }, frameInterval);
+
+                if (elapsed < SEQUENCE_DURATION) {
+                    requestAnimationFrame(drawFrame);
+                } else {
+                    // 显示首页首帧
+                    const firstImg = preloadedFrames[0];
+                    if (firstImg) {
+                        ctx.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                        ctx.drawImage(firstImg, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+                    }
+                    setTimeout(() => {
+                        sequenceContainer.style.display = 'none';
+                        sequenceContainer.style.animation = '';
+                        document.getElementById('book-hotspot').style.display = 'block';
+                        document.getElementById('click-hint').style.display = 'block';
+                        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+                        homeContainer.style.animation = '';
+                        isAnimating = false;
+                    }, 500);
+                }
+            }
+
+            requestAnimationFrame(drawFrame);
         }
 
         // 完成合书，返回首页
@@ -4574,9 +4608,11 @@
             
             for (let i = 1; i <= SEQUENCE_FRAMES; i++) {
                 const fileName = `picture/png序列/${i}.png`;
+                const frameIndex = i - 1;
                 
                 const img = new Image();
                 img.onload = () => {
+                    preloadedFrames[frameIndex] = img; // 缓存已解码的帧
                     loadedCount++;
                     updateProgress(loadedCount);
                 };
