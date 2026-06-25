@@ -4460,18 +4460,16 @@
                         ctx.drawImage(firstImg, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
                     }
                     setTimeout(() => {
+                        // 恢复原始桌面背景（含书桌上的书本）
+                        document.getElementById('home-bg').src = 'picture/home-bg.png';
                         sequenceContainer.style.display = 'none';
                         sequenceContainer.style.animation = '';
-                        // 恢复桌面上的书本图片
-                        const bookImage = document.getElementById('book-image');
-                        bookImage.style.display = 'block';
-                        bookImage.style.opacity = '1';
-                        bookImage.style.transform = 'translate(-50%, -50%) scale(1)';
-                        bookImage.style.animation = '';
                         document.getElementById('book-hotspot').style.display = 'block';
                         document.getElementById('click-hint').style.display = 'block';
                         overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+                        homeContainer.style.pointerEvents = 'auto';
                         homeContainer.style.animation = '';
+                        resetAnimation();
                         isAnimating = false;
                     }, 500);
                 }
