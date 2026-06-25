@@ -4379,12 +4379,16 @@
             const homeContainer = document.getElementById('home-container');
             const bookContainer = document.getElementById('book-container');
             const overlay = document.getElementById('overlay');
-            
+            const sequenceContainer = document.getElementById('sequence-container');
+
+            // 隐藏PNG序列容器（书本出现后序列应消失）
+            sequenceContainer.style.display = 'none';
+
             // 保持首页背景可见，隐藏交互元素
             homeContainer.style.display = 'block';
             homeContainer.style.pointerEvents = 'none';
             overlay.style.background = 'rgba(0, 0, 0, 0.4)'; // 加深遮罩使书更突出
-            
+
             // 显示书籍容器
             bookContainer.style.display = 'flex';
             currentPage = 1;
