@@ -180,7 +180,7 @@
             position: absolute;
             left: 50%;
             top: 50%;
-            width: 45vw;
+            width: 30vw;
             height: auto;
             z-index: 25;
             opacity: 0;
@@ -325,14 +325,14 @@
                 transform: translate(-50%, -50%) scale(1);
             }
             100% {
-                transform: translate(-50%, -50%) scale(1.0);
+                transform: translate(-50%, -50%) scale(2);
             }
         }
 
         /* 合书动画 - 从大到小 */
         @keyframes sequenceShrink {
             0% {
-                transform: translate(-50%, -50%) scale(1.0);
+                transform: translate(-50%, -50%) scale(2);
             }
             100% {
                 transform: translate(-50%, -50%) scale(1);
@@ -4593,7 +4593,7 @@
             sequenceContainer.style.animation = '';
             sequenceContainer.style.opacity = '0';
             sequenceContainer.style.transform = 'translate(-50%, -50%) scale(0)';
-            sequenceContainer.style.width = '45vw'; // 重置回初始宽度
+            sequenceContainer.style.width = '30vw'; // 重置回初始宽度
         }
 
         // 初始化
